@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🕷️ 爬虫练习靶场 - 动态版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --accent: #f093fb;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+            --text: #333333;
+            --text-light: #666666;
+            --shadow: rgba(0,0,0,0.1);
+            --transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] {
+            --bg: #1a1a2e;
+            --card: #16213e;
+            --text: #eaeaea;
+            --text-light: #a0a0a0;
+            --shadow: rgba(0,0,0,0.3);
+        }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            transition: var(--transition);
+            overflow-x: hidden;
+        }
+
+        /* ========== 加载动画 ========== */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s, visibility 0.5s;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .spider {
+            font-size: 80px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 1.5em;
+            margin-top: 20px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ========== 顶部导航 ========== */
+        .navbar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(102, 126, 234, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            font-size: 1.5em;
+            color: white;
+            font-weight: bold;
+        }
+
+        .nav-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-box input {
+            padding: 10px 40px 10px 15px;
+            border: none;
+            border-radius: 25px;
+            width: 250px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .search-box input:focus {
+            background: rgba(255,255,255,0.3);
+            width: 300px;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 2px solid white;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            background: white;
+            color: var(--primary);
+        }
+
+        /* ========== 主内容区 ========== */
+        .main-content {
+            margin-top: 80px;
+            padding: 20px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 40px 20px;
+            animation: fadeInUp 1s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-size: 3em;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .hero p {
+            color: var(--text-light);
+            font-size: 1.2em;
+        }
+
+        /* ========== 统计卡片 ========== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px var(--shadow);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-10px) rotateX(5deg);
+            box-shadow: 0 15px 40px var(--shadow);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            margin-top: 5px;
+        }
+
+        /* ========== 练习卡片 ========== */
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px var(--shadow);
+            transition: var(--transition);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px var(--shadow);
+        }
+
+        .card-title {
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text);
+        }
+
+        .card-hint {
+            background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+            border-left: 5px solid #f39c12;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            border-radius: 0 12px 12px 0;
+            color: #856404;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-hint::before {
+            content: "💡";
+            margin-right: 10px;
+        }
+
+        /* ========== 表格样式 ========== */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 15px;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        th:hover {
+            filter: brightness(1.1);
+        }
+
+        th.sortable::after {
+            content: " ⇅";
+            opacity: 0.5;
+        }
+
+        th.sort-asc::after {
+            content: " ↑";
+            opacity: 1;
+        }
+
+        th.sort-desc::after {
+            content: " ↓";
+            opacity: 1;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            transition: var(--transition);
+        }
+
+        tr {
+            transition: var(--transition);
+        }
+
+        tr:hover {
+            background: rgba(102, 126, 234, 0.05);
+            transform: scale(1.01);
+        }
+
+        .price {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .stock-low {
+            color: #e74c3c;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* ========== 游戏卡片 ========== */
+        .game-list {
+            list-style: none;
+        }
+
+        .game-item {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .game-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(10px);
+        }
+
+        .game-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 15px;
+            object-fit: cover;
+            transition: var(--transition);
+        }
+
+        .game-item:hover .game-img {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .game-info h3 {
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-right: 8px;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            transition: var(--transition);
+        }
+
+        .tag:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* ========== 电影网格 ========== */
+        .movie-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 25px;
+        }
+
+        .movie-card {
+            background: var(--card);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px var(--shadow);
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .movie-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            opacity: 0;
+            transition: var(--transition);
+            z-index: 1;
+        }
+
+        .movie-card:hover {
+            transform: translateY(-15px) rotateY(5deg);
+            box-shadow: 0 30px 60px var(--shadow);
+        }
+
+        .movie-card:hover::before {
+            opacity: 1;
+        }
+
+        .movie-poster {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            transition: var(--transition);
+        }
+
+        .movie-card:hover .movie-poster {
+            transform: scale(1.1);
+        }
+
+        .movie-content {
+            padding: 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .movie-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .movie-rating {
+            color: #f39c12;
+        }
+
+        /* ========== 隐藏数据揭示效果 ========== */
+        .secret-section {
+            position: relative;
+        }
+
+        .reveal-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: var(--transition);
+            display: block;
+            margin: 20px auto;
+        }
+
+        .reveal-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .hidden-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+        }
+
+        .hidden-content.revealed {
+            max-height: 1000px;
+        }
+
+        /* ========== 页脚 ========== */
+        .footer {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-light);
+        }
+
+        .heart {
+            color: #e74c3c;
+            animation: heartbeat 1s infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* ========== 滚动条美化 ========== */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(var(--primary), var(--secondary));
+            border-radius: 5px;
+        }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2em;
+            }
+            
+            .search-box input {
+                width: 150px;
+            }
+            
+            .search-box input:focus {
+                width: 180px;
+            }
+            
+            .game-item {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 加载动画 -->
+    <div id="loader">
+        <div class="spider">🕷️</div>
+        <div class="loading-text">正在加载爬虫练习靶场...</div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="logo">🕷️ 爬虫练习靶场</div>
+        <div class="nav-controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索内容...">
+                <span class="search-icon">🔍</span>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()">🌙 暗黑模式</button>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <div class="main-content">
+
+        <!-- 标题区 -->
+        <div class="hero">
+            <h1>🕷️ 爬虫练习靶场</h1>
+            <p>练习 XPath / CSS选择器 / 正则表达式 的绝佳场所</p>
+        </div>
+
+        <!-- 动态统计 -->
+        <div class="stats-row">
+            <div class="stat-card" onclick="animateNumber(this)">
+                <div class="stat-number" data-target="5">0</div>
+                <div class="stat-label">练习模块</div>
+            </div>
+            <div class="stat-card" onclick="animateNumber(this)">
+                <div class="stat-number" data-target="42">0</div>
+                <div class="stat-label">数据条目</div>
+            </div>
+            <div class="stat-card" onclick="animateNumber(this)">
+                <div class="stat-number" data-target="128">0</div>
+                <div class="stat-label">XPath路径</div>
+            </div>
+            <div class="stat-card" onclick="animateNumber(this)">
+                <div class="stat-number" data-target="999">0</div>
+                <div class="stat-label">练习次数</div>
+            </div>
+        </div>
+
+        <!-- 练习1：可排序表格 -->
+        <div class="card" data-searchable>
+            <div class="card-title">📊 练习1：基础表格（点击表头排序）</div>
+            <div class="card-hint">提示：点击表头可以排序！使用 //table/thead/tr/th/text() 提取表头</div>
+            <div class="table-container">
+                <table id="productTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" onclick="sortTable(0)">商品名称</th>
+                            <th class="sortable" onclick="sortTable(1)">类别</th>
+                            <th class="sortable" onclick="sortTable(2)">价格</th>
+                            <th class="sortable" onclick="sortTable(3)">库存</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>iPhone 15 Pro</td>
+                            <td>手机</td>
+                            <td class="price" data-value="7999">¥7999</td>
+                            <td>156</td>
+                        </tr>
+                        <tr>
+                            <td>MacBook Air M3</td>
+                            <td>笔记本</td>
+                            <td class="price" data-value="8999">¥8999</td>
+                            <td class="stock-low">12</td>
+                        </tr>
+                        <tr>
+                            <td>AirPods Pro 2</td>
+                            <td>耳机</td>
+                            <td class="price" data-value="1899">¥1899</td>
+                            <td>342</td>
+                        </tr>
+                        <tr>
+                            <td>iPad Air 5</td>
+                            <td>平板</td>
+                            <td class="price" data-value="4799">¥4799</td>
+                            <td>89</td>
+                        </tr>
+                        <tr>
+                            <td>Apple Watch 9</td>
+                            <td>手表</td>
+                            <td class="price" data-value="2999">¥2999</td>
+                            <td class="stock-low">5</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 练习2：游戏列表 -->
+        <div class="card" data-searchable>
+            <div class="card-title">🎮 练习2：多层嵌套结构（悬停有惊喜）</div>
+            <div class="card-hint">提示：鼠标悬停查看动画效果！使用 //ul[@class="game-list"]/li 定位</div>
+            <ul class="game-list" id="gameList">
+                <li class="game-item" onclick="showGameDetail(this)">
+                    <img class="game-img" src="https://picsum.photos/100/100?random=1" alt="黑神话悟空">
+                    <div class="game-info">
+                        <h3>黑神话：悟空</h3>
+                        <span class="tag">动作</span>
+                        <span class="tag">RPG</span>
+                        <span class="tag">国产</span>
+                        <p style="color: var(--text-light); margin-top: 10px;">中国首款3A大作，以西游记为背景的魂类动作游戏</p>
+                    </div>
+                </li>
+                <li class="game-item" onclick="showGameDetail(this)">
+                    <img class="game-img" src="https://picsum.photos/100/100?random=2" alt="艾尔登法环">
+                    <div class="game-info">
+                        <h3>艾尔登法环</h3>
+                        <span class="tag">魂类</span>
+                        <span class="tag">开放世界</span>
+                        <p style="color: var(--text-light); margin-top: 10px;">FromSoftware打造的开放世界魂类游戏</p>
+                    </div>
+                </li>
+                <li class="game-item" onclick="showGameDetail(this)">
+                    <img class="game-img" src="https://picsum.photos/100/100?random=3" alt="塞尔达">
+                    <div class="game-info">
+                        <h3>塞尔达传说：王国之泪</h3>
+                        <span class="tag">冒险</span>
+                        <span class="tag">解谜</span>
+                        <span class="tag">任天堂</span>
+                        <p style="color: var(--text-light); margin-top: 10px;">任天堂Switch独占大作，自由度极高</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 练习3：不规则表格 -->
+        <div class="card" data-searchable>
+            <div class="card-title">⚠️ 练习3：不规则表格（无thead/tbody）</div>
+            <div class="card-hint">提示：这个表格没有thead和tbody！使用 //table/tr[1]/td/text() 提取表头</div>
+            <div class="table-container">
+                <table id="langTable">
+                    <tr>
+                        <td>排名</td>
+                        <td>语言</td>
+                        <td>流行度</td>
+                        <td>年度冠军</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>Python</td>
+                        <td>23.88%</td>
+                        <td>2次</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>C++</td>
+                        <td>11.37%</td>
+                        <td>0次</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Java</td>
+                        <td>10.66%</td>
+                        <td>1次</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>C#</td>
+                        <td>6.63%</td>
+                        <td>2次</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- 练习4：电影卡片 -->
+        <div class="card" data-searchable>
+            <div class="card-title">🎬 练习4：电影卡片（3D悬停效果）</div>
+            <div class="card-hint">提示：鼠标悬停有3D效果！提取 img/@src 属性</div>
+            <div class="movie-grid">
+                <div class="movie-card" data-id="1001" onclick="flipCard(this)">
+                    <img class="movie-poster" src="https://picsum.photos/200/300?random=4" alt="哪吒2">
+                    <div class="movie-content">
+                        <div class="movie-title">哪吒之魔童闹海</div>
+                        <div class="movie-rating">★★★★★ <span>9.6分</span></div>
+                    </div>
+                </div>
+                <div class="movie-card" data-id="1002" onclick="flipCard(this)">
+                    <img class="movie-poster" src="https://picsum.photos/200/300?random=5" alt="流浪地球3">
+                    <div class="movie-content">
+                        <div class="movie-title">流浪地球3</div>
+                        <div class="movie-rating">★★★★☆ <span>8.9分</span></div>
+                    </div>
+                </div>
+                <div class="movie-card" data-id="1003" onclick="flipCard(this)">
+                    <img class="movie-poster" src="https://picsum.photos/200/300?random=6" alt="封神2">
+                    <div class="movie-content">
+                        <div class="movie-title">封神第二部</div>
+                        <div class="movie-rating">★★★★☆ <span>8.5分</span></div>
+                    </div>
+                </div>
+                <div class="movie-card" data-id="1004" onclick="flipCard(this)">
+                    <img class="movie-poster" src="https://picsum.photos/200/300?random=7" alt="热辣滚烫">
+                    <div class="movie-content">
+                        <div class="movie-title">热辣滚烫</div>
+                        <div class="movie-rating">★★★★☆ <span>8.2分</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 练习5：隐藏数据 -->
+        <div class="card secret-section" data-searchable>
+            <div class="card-title">👻 练习5：隐藏数据（点击揭示）</div>
+            <div class="card-hint">提示：点击按钮揭示隐藏数据！源码中 display:none 的内容</div>
+            <button class="reveal-btn" onclick="revealSecret()">🔍 点击揭示隐藏评论</button>
+            <div class="hidden-content" id="secretContent">
+                <ul style="list-style: none; margin-top: 20px;">
+                    <li style="padding: 15px; background: rgba(102,126,234,0.1); border-radius: 10px; margin-bottom: 10px;">
+                        <strong style="color: var(--primary);">爬虫小白</strong> 
+                        <span style="color: var(--text-light); font-size: 0.9em;">2024-01-15</span>
+                        <p style="margin-top: 8px;">这个靶场太棒了，终于有地方练习XPath了！</p>
+                    </li>
+                    <li style="padding: 15px; background: rgba(102,126,234,0.1); border-radius: 10px; margin-bottom: 10px;">
+                        <strong style="color: var(--primary);">Python爱好者</strong>
+                        <span style="color: var(--text-light); font-size: 0.9em;">2024-01-16</span>
+                        <p style="margin-top: 8px;">lxml库真的很快，比BeautifulSoup效率高多了。</p>
+                    </li>
+                    <li style="padding: 15px; background: rgba(102,126,234,0.1); border-radius: 10px; margin-bottom: 10px;">
+                        <strong style="color: var(--primary);">数据分析师</strong>
+                        <span style="color: var(--text-light); font-size: 0.9em;">2024-01-17</span>
+                        <p style="margin-top: 8px;">已经能成功提取所有数据了，准备挑战真实网站！</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 页脚 -->
+    <div class="footer">
+        <p>用 <span class="heart">❤️</span> 打造 | 爬虫练习靶场</p>
+        <p style="margin-top: 10px;">提示：右键 → 查看网页源代码，可以更好地理解 HTML 结构</p>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ========== 加载动画 ==========
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+                // 加载完成后启动数字动画
+                document.querySelectorAll('.stat-number').forEach(num => {
+                    animateNumber(num);
+                });
+            }, 1500);
+        });
+
+        // ========== 数字滚动动画 ==========
+        function animateNumber(element) {
+            const target = parseInt(element.getAttribute('data-target'));
+            const duration = 2000;
+            const step = target / (duration / 16);
+            let current = 0;
+
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) {
+                    element.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 16);
+        }
+
+        // ========== 暗黑模式切换 ==========
+        function toggleTheme() {
+            const html = document.documentElement;
+            const btn = document.querySelector('.theme-toggle');
+            
+            if (html.getAttribute('data-theme') === 'dark') {
+                html.removeAttribute('data-theme');
+                btn.textContent = '🌙 暗黑模式';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                btn.textContent = '☀️ 明亮模式';
+            }
+        }
+
+        // ========== 表格排序 ==========
+        let sortDirection = {};
+
+        function sortTable(columnIndex) {
+            const table = document.getElementById('productTable');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const headers = table.querySelectorAll('th');
+
+            // 切换排序方向
+            sortDirection[columnIndex] = !sortDirection[columnIndex];
+
+            // 更新表头样式
+            headers.forEach((h, i) => {
+                h.classList.remove('sort-asc', 'sort-desc');
+                if (i === columnIndex) {
+                    h.classList.add(sortDirection[columnIndex] ? 'sort-asc' : 'sort-desc');
+                }
+            });
+
+            // 排序
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].textContent.trim();
+                let bVal = b.cells[columnIndex].textContent.trim();
+
+                // 尝试数字排序
+                const aNum = parseFloat(aVal.replace(/[¥,%]/g, ''));
+                const bNum = parseFloat(bVal.replace(/[¥,%]/g, ''));
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return sortDirection[columnIndex] ? aNum - bNum : bNum - aNum;
+                }
+
+                return sortDirection[columnIndex] 
+                    ? aVal.localeCompare(bVal, 'zh') 
+                    : bVal.localeCompare(aVal, 'zh');
+            });
+
+            // 重新插入
+            rows.forEach(row => tbody.appendChild(row));
+
+            // 添加动画
+            rows.forEach((row, i) => {
+                row.style.animation = 'none';
+                setTimeout(() => {
+                    row.style.animation = 'fadeInUp 0.3s ease';
+                }, i * 50);
+            });
+        }
+
+        // ========== 实时搜索过滤 ==========
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const keyword = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('[data-searchable]');
+
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                if (text.includes(keyword)) {
+                    card.style.display = 'block';
+                    card.style.animation = 'fadeInUp 0.5s ease';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // ========== 揭示隐藏内容 ==========
+        function revealSecret() {
+            const content = document.getElementById('secretContent');
+            const btn = document.querySelector('.reveal-btn');
+            
+            content.classList.toggle('revealed');
+            
+            if (content.classList.contains('revealed')) {
+                btn.textContent = '🔼 点击隐藏评论';
+                btn.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+            } else {
+                btn.textContent = '🔍 点击揭示隐藏评论';
+                btn.style.background = '';
+            }
+        }
+
+        // ========== 游戏详情提示 ==========
+        function showGameDetail(element) {
+            const title = element.querySelector('h3').textContent;
+            // 简单的视觉反馈
+            element.style.transform = 'scale(1.02)';
+            setTimeout(() => {
+                element.style.transform = '';
+            }, 200);
+        }
+
+        // ========== 卡片翻转效果 ==========
+        function flipCard(card) {
+            card.style.transform = 'rotateY(180deg)';
+            setTimeout(() => {
+                card.style.transform = '';
+            }, 600);
+        }
+
+        // ========== 滚动显示动画 ==========
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // 观察所有卡片
+        document.querySelectorAll('.card').forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(30px)';
+            card.style.transition = 'all 0.6s ease';
+            card.style.transitionDelay = `${index * 0.1}s`;
+            observer.observe(card);
+        });
+
+        // ========== 鼠标跟随效果（可选） ==========
+        document.addEventListener('mousemove', (e) => {
+            const cards = document.querySelectorAll('.stat-card');
+            const mouseX = e.clientX / window.innerWidth - 0.5;
+            const mouseY = e.clientY / window.innerHeight - 0.5;
+
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const cardCenterX = rect.left + rect.width / 2;
+                const cardCenterY = rect.top + rect.height / 2;
+                
+                const distX = (e.clientX - cardCenterX) / 30;
+                const distY = (e.clientY - cardCenterY) / 30;
+
+                card.style.transform = `perspective(1000px) rotateY(${distX}deg) rotateX(${-distY}deg)`;
+            });
+        });
+    </script>
+
+</body>
+</html>
